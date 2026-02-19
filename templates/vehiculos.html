@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Vehículos</h2>
+
+<!-- Contador simple -->
+<div class="alert alert-info mb-4">
+    Total de vehículos registrados: <strong>{{ total_vehiculos }}</strong>
+</div>
+
+<!-- Filtros -->
+<form method="GET" class="mb-4">
+    <div class="row g-3">
+        <div class="col-md-5">
+            <label for="busqueda" class="form-label">Buscar por placa, marca o modelo</label>
+            <input type="text" class="form-control" id="busqueda" name="busqueda" value="{{ busqueda }}" placeholder="Ej: ABC123, Toyota, Corolla">
+        </div>
+        <div class="col-md-4">
+            <label for="cliente_id" class="form-label">Cliente</label>
+            <select class="form-select" id="cliente_id" name="cliente_id">
+                <option value="todos">Todos los clientes</option>
+                {% for cliente in clientes %}
+                <option value="{{ cliente.id }}" {% if filtro_cliente == cliente.id|string %}selected{% endif %}>
+                    {{ cliente.nombre }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+        </div>
+    </div>
+</form>
+
+<!-- Formulario agregar -->
+<form method="POST" class="mb-5 border p-4 rounded bg-light">
+    <h5 class="mb-3">Registrar nuevo vehículo</h5>
+    <div class="row g-3">
+        <div class="col-md-3">
+            <label for="marca" class="form-label">Marca *</label>
+            <input type="text" class="form-control" id="marca" name="marca" required>
+        </div>
+        <div class="col-md-3">
+            <label for="modelo" class="form-label">Modelo *</label>
+            <input type="text" class="form-control" id="modelo" name="modelo" required>
+        </div>
+        <div class="col-md-2">
+            <label for="ano" class="form-label">Año *</label>
+            <input type="number" class="form-control" id="ano" name="ano" required>
+        </div>
+        <div class="col-md-2">
+            <label for="placa" class="form-label">Placa *</label>
+            <input type="text" class="form-control" id="placa" name="placa" required>
+        </div>
+        <div class="col-md-2">
+            <label for="cliente_id" class="form-label">Cliente *</label>
+            <select class="form-select" id="cliente_id" name="cliente_id" required>
+                {% for cliente in clientes %}
+                <option value="{{ cliente.id }}">{{ cliente.nombre }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="mt-3">
+        <button type="submit" class="btn btn-success">Guardar Vehículo</button>
+    </div>
+</form>
+
+<!-- Tabla -->
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Placa</th>
+                <th>Marca - Modelo</th>
+                <th>Año</th>
+                <th>Cliente</th>
+                <th>Órdenes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for vehiculo in vehiculos %}
+            <tr>
+                <td>{{ vehiculo.id }}</td>
+                <td><strong>{{ vehiculo.placa }}</strong></td>
+                <td>{{ vehiculo.marca }} {{ vehiculo.modelo }}</td>
+                <td>{{ vehiculo.ano }}</td>
+                <td>{{ vehiculo.cliente.nombre }}</td>
+                <td>
+                    {% if vehiculo.ordenes_trabajo %}
+                        <span class="badge bg-primary">{{ vehiculo.ordenes_trabajo|length }}</span>
+                    {% else %}
+                        <span class="badge bg-secondary">0</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center py-4">No hay vehículos que coincidan con los filtros</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Paginación -->
+{% if paginacion.has_prev or paginacion.has_next %}
+<nav aria-label="Paginación vehículos">
+    <ul class="pagination justify-content-center">
+        <li class="page-item {% if not paginacion.has_prev %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ paginacion.prev_num }}&busqueda={{ busqueda }}&cliente_id={{ filtro_cliente }}">Anterior</a>
+        </li>
+        {% for p in paginacion.iter_pages(left_edge=2, right_edge=2) %}
+            {% if p %}
+                <li class="page-item {% if p == paginacion.page %}active{% endif %}">
+                    <a class="page-link" href="?page={{ p }}&busqueda={{ busqueda }}&cliente_id={{ filtro_cliente }}">{{ p }}</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+        {% endfor %}
+        <li class="page-item {% if not paginacion.has_next %}disabled{% endif %}">
+            <a class="page-link" href="?page={{ paginacion.next_num }}&busqueda={{ busqueda }}&cliente_id={{ filtro_cliente }}">Siguiente</a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+
+{% endblock %}

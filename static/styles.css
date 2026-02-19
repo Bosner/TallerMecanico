@@ -1,0 +1,64 @@
+/* Paleta recomendada #1 */
+:root {
+    --primary: #003087;       /* Azul mecánico */
+    --secondary: #c8102e;     /* Rojo energía */
+    --accent: #ff8c00;        /* Naranja dinamismo */
+    --dark: #212529;
+    --gray: #6c757d;
+    --light: #f8f9fa;
+    --white: #ffffff;
+}
+
+body {
+    background-color: var(--light);
+    color: var(--dark);
+    font-family: 'Roboto', sans-serif;
+}
+
+.navbar {
+    background-color: var(--dark) !important;
+}
+
+.navbar-brand, .nav-link {
+    color: var(--white) !important;
+}
+
+.nav-link:hover {
+    color: var(--accent) !important;
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+.btn-primary:hover {
+    background-color: #002060;
+    border-color: #002060;
+}
+
+.btn-success {
+    background-color: #198754;
+}
+
+.btn-danger {
+    background-color: var(--secondary);
+}
+
+.card {
+    border: 1px solid #dee2e6;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.table thead {
+    background-color: var(--primary);
+    color: white;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #fff3cd; /* Amarillo-naranja muy claro */
+}
+
+/* Para resaltar estados */
+.text-pendiente { color: #fd7e14; font-weight: bold; }
+.text-completado { color: #198754; font-weight: bold; }

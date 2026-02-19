@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Órdenes de Compra</h2>
+<form method="POST" class="mb-4">
+    <div class="mb-3">
+        <label for="proveedor" class="form-label">Proveedor</label>
+        <input type="text" class="form-control" id="proveedor" name="proveedor" required>
+    </div>
+    <div class="mb-3">
+        <label for="total" class="form-label">Total</label>
+        <input type="number" step="0.01" class="form-control" id="total" name="total" required>
+    </div>
+    <!-- Campo adicional para parte y cantidad, para lógica de actualización de inventario -->
+    <div class="mb-3">
+        <label for="parte_id" class="form-label">Parte a Comprar (opcional, para actualizar inventario)</label>
+        <select class="form-select" id="parte_id" name="parte_id">
+            <option value="">Ninguna</option>
+            {% for item in items %}
+            <option value="{{ item.id }}">{{ item.nombre_parte }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="mb-3">
+        <label for="cantidad_comprada" class="form-label">Cantidad Comprada (si selecciona parte)</label>
+        <input type="number" class="form-control" id="cantidad_comprada" name="cantidad_comprada">
+    </div>
+    <button type="submit" class="btn btn-primary">Crear Orden de Compra</button>
+</form>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Proveedor</th>
+            <th>Fecha</th>
+            <th>Total</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for orden in ordenes %}
+        <tr>
+            <td>{{ orden.id }}</td>
+            <td>{{ orden.proveedor }}</td>
+            <td>{{ orden.fecha }}</td>
+            <td>{{ orden.total }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
