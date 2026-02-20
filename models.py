@@ -56,6 +56,17 @@ class OrdenTrabajo(db.Model):
         backref=db.backref('ordenes_trabajo', lazy='dynamic'),
         lazy='dynamic'
     )
+    
+    def get_partes_con_cantidad(self):
+        return db.session.query(
+            Inventario,
+            orden_trabajo_partes.c.cantidad_usada
+        ).join(
+            orden_trabajo_partes,
+            Inventario.id == orden_trabajo_partes.c.parte_id
+        ).filter(
+            orden_trabajo_partes.c.orden_id == self.id
+        ).all()
 
     def __repr__(self):
         return f'<OrdenTrabajo {self.id} - {self.estado}>'

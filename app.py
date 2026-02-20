@@ -406,6 +406,25 @@ def ordenes_trabajo():
                           partes=partes, 
                           ordenes=ordenes)
 
+@app.route('/ordenes_trabajo/<int:orden_id>')
+def detalle_orden(orden_id):
+    orden = OrdenTrabajo.query.get_or_404(orden_id)
+    
+    # Opcional: calcular costo total de partes usadas
+    costo_partes = 0
+    for parte in orden.partes:
+        # parte.cantidad_usada viene de la tabla intermedia
+        cantidad = db.session.query(orden_trabajo_partes.c.cantidad_usada)\
+                             .filter_by(orden_id=orden.id, parte_id=parte.id)\
+                             .scalar() or 0
+        costo_partes += cantidad * parte.precio
+    
+    costo_total = orden.costo_mano_obra + costo_partes
+    
+    return render_template('detalle_orden.html',
+                           orden=orden,
+                           costo_partes=costo_partes,
+                           costo_total=costo_total)
 
 def get_dashboard_counts():
     from models import OrdenTrabajo, Inventario
@@ -423,6 +442,42 @@ def get_dashboard_counts():
 @app.context_processor
 def inject_dashboard_counts():
     return dict(dashboard_counts=get_dashboard_counts())
+
+
+@app.route('/ordenes_trabajo/update_estado/<int:orden_id>', methods=['POST'])
+def update_estado_orden(orden_id):
+    """
+    Actualiza el estado de una orden de trabajo específica.
+    Se llama desde la página de detalle o desde la lista (si agregamos dropdown allí).
+    """
+    orden = OrdenTrabajo.query.get_or_404(orden_id)
+    
+    nuevo_estado = request.form.get('estado')
+    
+    # Validar que el estado sea uno de los permitidos
+    estados_validos = ['Pendiente', 'En progreso', 'Completado', 'Cancelado']
+    if nuevo_estado not in estados_validos:
+        flash(f'Estado inválido. Debe ser uno de: {", ".join(estados_validos)}', 'danger')
+        return redirect(request.referrer or url_for('ordenes_trabajo'))
+    
+    # Actualizar el estado
+    orden.estado = nuevo_estado
+    
+    # Opcional: si se completa, podrías agregar lógica extra aquí
+    if nuevo_estado == 'Completado':
+        # Ejemplo: podrías guardar fecha de finalización si agregas el campo
+        # orden.fecha_fin = date.today()
+        flash('¡Orden marcada como completada!', 'success')
+    elif nuevo_estado == 'Cancelado':
+        flash('Orden cancelada correctamente.', 'warning')
+    else:
+        flash(f'Estado actualizado a: {nuevo_estado}', 'info')
+    
+    db.session.commit()
+    
+    # Regresar a donde vino el usuario (página de detalle o lista)
+    return redirect(request.referrer or url_for('ordenes_trabajo'))
+
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="container mt-4">
+    <h2 class="mb-4">Orden de Trabajo #{{ orden.id }}</h2>
+    
+    <!-- Botón volver -->
+    <a href="{{ url_for('ordenes_trabajo') }}" class="btn btn-secondary mb-3">
+        ← Volver a la lista
+    </a>
+
+    <!-- Tarjeta principal con info básica -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Información General</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Fecha de creación:</strong> {{ orden.fecha_creacion.strftime('%d/%m/%Y') }}</p>
+                    <p><strong>Vehículo:</strong> {{ orden.vehiculo.marca }} {{ orden.vehiculo.modelo }}</p>
+                    <p><strong>Placa:</strong> <strong class="text-uppercase">{{ orden.vehiculo.placa }}</strong></p>
+                    <p><strong>Año:</strong> {{ orden.vehiculo.ano }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Cliente:</strong> {{ orden.vehiculo.cliente.nombre }}</p>
+                    {% if orden.vehiculo.cliente.telefono %}
+                    <p><strong>Teléfono:</strong> {{ orden.vehiculo.cliente.telefono }}</p>
+                    {% endif %}
+                    {% if orden.vehiculo.cliente.email %}
+                    <p><strong>Email:</strong> {{ orden.vehiculo.cliente.email }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Descripción y costos -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">Trabajo realizado / a realizar</h5>
+        </div>
+        <div class="card-body">
+            <p class="lead">{{ orden.descripcion }}</p>
+            
+            <hr>
+            
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <h6>Mano de obra</h6>
+                    <p class="fs-4 fw-bold">${{ orden.costo_mano_obra|round(2) }}</p>
+                </div>
+                <div class="col-md-4">
+                    <h6>Partes usadas</h6>
+                    <p class="fs-4 fw-bold">${{ costo_partes|round(2) }}</p>
+                </div>
+                <div class="col-md-4">
+                    <h6>Total estimado</h6>
+                    <p class="fs-4 fw-bold text-success">${{ costo_total|round(2) }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Partes usadas -->
+    {% if orden.partes.count() > 0 %}
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">Partes / Materiales utilizados</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Parte</th>
+                            <th>Cantidad</th>
+                            <th>Precio unitario</th>
+                            <th>Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for parte in orden.partes %}
+                        {% set cantidad = db.session.query(orden_trabajo_partes.c.cantidad_usada)
+                                            .filter_by(orden_id=orden.id, parte_id=parte.id)
+                                            .scalar() or 0 %}
+                        <tr>
+                            <td>{{ parte.nombre_parte }}</td>
+                            <td>{{ cantidad }}</td>
+                            <td>${{ parte.precio|round(2) }}</td>
+                            <td class="fw-bold">${{ (cantidad * parte.precio)|round(2) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">No se usaron partes en esta orden.</div>
+    {% endif %}
+
+    <!-- Sección para cambiar estado -->
+    <div class="card shadow-sm border-primary">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Estado actual: 
+                <span class="badge bg-light text-dark ms-2">{{ orden.estado }}</span>
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('update_estado_orden', orden_id=orden.id) }}">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-6">
+                        <label for="estado" class="form-label fw-bold">Cambiar estado a:</label>
+                        <select class="form-select form-select-lg" id="estado" name="estado" required>
+                            <option value="Pendiente" {% if orden.estado == 'Pendiente' %}selected{% endif %}>Pendiente</option>
+                            <option value="En progreso" {% if orden.estado == 'En progreso' %}selected{% endif %}>En progreso</option>
+                            <option value="Completado" {% if orden.estado == 'Completado' %}selected{% endif %}>Completado</option>
+                            <option value="Cancelado" {% if orden.estado == 'Cancelado' %}selected{% endif %}>Cancelado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            Actualizar Estado
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
