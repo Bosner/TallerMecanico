@@ -1,6 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
-from models import db, Cliente, Vehiculo, Inventario, OrdenCompra, OrdenTrabajo
-from sqlalchemy import desc
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from models import db, Cliente, Vehiculo, Inventario, OrdenCompra, OrdenTrabajo, orden_trabajo_partes
+from sqlalchemy import desc, func
 from datetime import date, datetime
 
 app = Flask(__name__)
@@ -21,16 +21,28 @@ def index():
 @app.route('/clientes', methods=['GET', 'POST'])
 def clientes():
     if request.method == 'POST':
-        # Lógica de creación (ya la tienes, mantenla)
         nombre = request.form.get('nombre')
         telefono = request.form.get('telefono')
         email = request.form.get('email')
         
-        if nombre:
+        # Campos de vehículo (nuevo)
+        marca = request.form.get('marca')
+        modelo = request.form.get('modelo')
+        ano = request.form.get('ano')
+        placa = request.form.get('placa')
+        kms_actual = request.form.get('kms_actual', 0, type=int)
+        
+        if nombre and marca and modelo and ano and placa:  # Requerir vehículo al alta
             nuevo_cliente = Cliente(nombre=nombre, telefono=telefono, email=email)
             db.session.add(nuevo_cliente)
             db.session.commit()
-            flash('Cliente agregado correctamente', 'success')
+            
+            nuevo_vehiculo = Vehiculo(marca=marca, modelo=modelo, ano=ano, placa=placa, kms_actual=kms_actual, cliente_id=nuevo_cliente.id)
+            db.session.add(nuevo_vehiculo)
+            db.session.commit()
+            flash('Cliente y vehículo agregados correctamente', 'success')
+        else:
+            flash('Faltan datos de cliente o vehículo', 'danger')
         return redirect(url_for('clientes'))
 
     # GET: filtros, búsqueda y paginación
@@ -289,142 +301,156 @@ def ordenes_compra():
     items = Inventario.query.all()  # Para select en template
     return render_template('ordenes_compra.html', ordenes=ordenes, items=items)
 
-# Órdenes de Trabajo
-@app.route('/ordenes_trabajo', methods=['GET', 'POST'])
-def ordenes_trabajo():
+
+from datetime import date, datetime
+from flask import flash, redirect, render_template, request, url_for
+from sqlalchemy import desc
+
+# ... otras importaciones que ya tengas ...
+
+@app.route('/ordenes_servicio', methods=['GET', 'POST'])
+def ordenes_servicio():
     if request.method == 'POST':
-        vehiculo_id = int(request.form['vehiculo_id'])
-        descripcion = request.form['descripcion']
-        costo_mano_obra = float(request.form['costo_mano_obra'])
-        
+        cliente_id = request.form.get('cliente_id')
+        vehiculo_id = request.form.get('vehiculo_id')
+        falla_reportada = request.form.get('falla_reportada')
+        checklist_items = request.form.getlist('checklist[]')          # checkboxes
+        fecha_compromiso_str = request.form.get('fecha_compromiso')
+
+        if not all([cliente_id, vehiculo_id, falla_reportada]):
+            flash('Faltan campos obligatorios: cliente, vehículo o falla reportada', 'danger')
+            return redirect(url_for('ordenes_servicio'))
+
+        # Validar que el vehículo pertenece al cliente
+        vehiculo = Vehiculo.query.get(vehiculo_id)
+        if not vehiculo or str(vehiculo.cliente_id) != cliente_id:
+            flash('El vehículo seleccionado no pertenece al cliente indicado', 'danger')
+            return redirect(url_for('ordenes_servicio'))
+
+        # Crear la orden
         nueva_orden = OrdenTrabajo(
             vehiculo_id=vehiculo_id,
-            descripcion=descripcion,
-            costo_mano_obra=costo_mano_obra
+            falla_reportada=falla_reportada.strip(),
+            estado='Pendiente',
+            fecha_creacion=datetime.utcnow(),
         )
+
+        # Folio automático
+        ultima_orden = OrdenTrabajo.query.order_by(desc(OrdenTrabajo.id)).first()
+        siguiente_num = (ultima_orden.id + 1) if ultima_orden else 1
+        nueva_orden.folio = f"F-{siguiente_num:04d}"   # Ej: F-0001, F-0002...
+
+        # Fecha compromiso (opcional)
+        if fecha_compromiso_str:
+            try:
+                nueva_orden.fecha_compromiso = datetime.strptime(fecha_compromiso_str, '%Y-%m-%d').date()
+            except:
+                flash('Formato de fecha compromiso inválido', 'warning')
+
+        # Checklist como texto
+        if checklist_items:
+            nueva_orden.checklist_revision = ", ".join(checklist_items)
+        else:
+            nueva_orden.checklist_revision = "Sin ítems de revisión inicial marcados"
+
         db.session.add(nueva_orden)
-        db.session.flush()  # Obtenemos el ID sin commit final
-        
-        # Procesar múltiples partes
-        parte_ids = request.form.getlist('parte_id[]')
-        cantidades = request.form.getlist('cantidad_usada[]')
-        
-        for parte_id_str, cantidad_str in zip(parte_ids, cantidades):
-            if parte_id_str and cantidad_str:
-                try:
-                    parte_id = int(parte_id_str)
-                    cantidad = int(cantidad_str)
-                    if cantidad <= 0:
-                        continue
-                    
-                    parte = Inventario.query.get(parte_id)
-                    if not parte:
-                        flash(f'Parte ID {parte_id} no encontrada', 'danger')
-                        continue
-                    
-                    if parte.cantidad < cantidad:
-                        flash(f'No hay suficiente stock de {parte.nombre_parte} (disponible: {parte.cantidad}, solicitado: {cantidad})', 'danger')
-                        continue
-                    
-                    # Asociar la parte y restar del inventario
-                    stmt = orden_trabajo_partes.insert().values(
-                        orden_id=nueva_orden.id,
-                        parte_id=parte.id,
-                        cantidad_usada=cantidad
-                    )
-                    db.session.execute(stmt)
-                    
-                    parte.cantidad -= cantidad
-                    flash(f'Agregada {cantidad} de {parte.nombre_parte}', 'success')
-                    
-                except ValueError:
-                    flash('Error en cantidad o ID de parte', 'danger')
-        
         db.session.commit()
-        flash('Orden de trabajo creada correctamente', 'success')
-        return redirect(url_for('ordenes_trabajo'))
-    # GET: filtros y paginación
+
+        flash(f'Orden de servicio creada correctamente → Folio: {nueva_orden.folio}', 'success')
+        return redirect(url_for('ordenes_servicio'))
+
+    # ────────────────────────────────────────────────
+    #                  GET - Listado + filtros
+    # ────────────────────────────────────────────────
     page = request.args.get('page', 1, type=int)
     estado_filtro = request.args.get('estado', 'todas')
     busqueda = request.args.get('busqueda', '').strip()
 
     query = OrdenTrabajo.query
 
-    # Filtro por estado
     if estado_filtro != 'todas':
         query = query.filter(OrdenTrabajo.estado == estado_filtro)
 
-    # Búsqueda por placa o nombre cliente
     if busqueda:
         query = query.join(Vehiculo).join(Cliente).filter(
             db.or_(
                 Vehiculo.placa.ilike(f'%{busqueda}%'),
-                Cliente.nombre.ilike(f'%{busqueda}%')
+                Cliente.nombre.ilike(f'%{busqueda}%'),
+                OrdenTrabajo.folio.ilike(f'%{busqueda}%')
             )
         )
 
-    # Orden: más recientes primero (o puedes cambiar a por estado)
-    query = query.order_by(desc(OrdenTrabajo.fecha_creacion))  # Asumiendo que tienes fecha_creacion
+    query = query.order_by(desc(OrdenTrabajo.fecha_creacion))
 
-    # Paginación (20 por página)
-    paginacion = query.paginate(page=page, per_page=20, error_out=False)
+    paginacion = query.paginate(page=page, per_page=15, error_out=False)
     ordenes = paginacion.items
 
     # Contadores para dashboard
-    total_pendientes = OrdenTrabajo.query.filter_by(estado='Pendiente').count()
-    total_progreso = OrdenTrabajo.query.filter_by(estado='En progreso').count()
-    total_completadas_hoy = OrdenTrabajo.query.filter(
+    hoy = date.today()
+    total_pendientes         = OrdenTrabajo.query.filter_by(estado='Pendiente').count()
+    total_progreso           = OrdenTrabajo.query.filter_by(estado='En progreso').count()
+    total_completadas_hoy    = OrdenTrabajo.query.filter(
         OrdenTrabajo.estado == 'Completado',
-        OrdenTrabajo.fecha_creacion == date.today()  # o usa fecha_fin si la agregas
+        OrdenTrabajo.fecha_entrega == hoy
     ).count()
-    total_abiertas = OrdenTrabajo.query.filter(
+    total_abiertas           = OrdenTrabajo.query.filter(
         OrdenTrabajo.estado.in_(['Pendiente', 'En progreso'])
     ).count()
 
-    vehiculos = Vehiculo.query.all()
-    partes = Inventario.query.filter(Inventario.cantidad > 0).all()
+    clientes = Cliente.query.order_by(Cliente.nombre).all()
 
-    return render_template('ordenes_trabajo.html',
-                           ordenes=ordenes,
-                           vehiculos=vehiculos,
-                           partes=partes,
-                           paginacion=paginacion,
-                           estado_filtro=estado_filtro,
-                           busqueda=busqueda,
-                           total_pendientes=total_pendientes,
-                           total_progreso=total_progreso,
-                           total_completadas_hoy=total_completadas_hoy,
-                           total_abiertas=total_abiertas)
-    
-    # GET
-    vehiculos = Vehiculo.query.all()
-    partes = Inventario.query.filter(Inventario.cantidad > 0).all()  # Solo partes con stock
-    ordenes = OrdenTrabajo.query.all()
-    
-    return render_template('ordenes_trabajo.html', 
-                          vehiculos=vehiculos, 
-                          partes=partes, 
-                          ordenes=ordenes)
+    return render_template(
+        'ordenes_servicio.html',
+        ordenes=ordenes,
+        clientes=clientes,
+        paginacion=paginacion,
+        estado_filtro=estado_filtro,
+        busqueda=busqueda,
+        total_pendientes=total_pendientes,
+        total_progreso=total_progreso,
+        total_completadas_hoy=total_completadas_hoy,
+        total_abiertas=total_abiertas
+    )
 
-@app.route('/ordenes_trabajo/<int:orden_id>')
+@app.route('/ordenes_servicio/<int:orden_id>')
 def detalle_orden(orden_id):
+    """
+    Muestra el detalle de una orden de servicio.
+    - Sin costos (eliminados por requerimiento del cliente)
+    - Permite ver/agregar refacciones solo si está en 'En progreso'
+    - Muestra trabajo realizado, checklist, etc.
+    """
     orden = OrdenTrabajo.query.get_or_404(orden_id)
-    
-    # Opcional: calcular costo total de partes usadas
-    costo_partes = 0
-    for parte in orden.partes:
-        # parte.cantidad_usada viene de la tabla intermedia
-        cantidad = db.session.query(orden_trabajo_partes.c.cantidad_usada)\
-                             .filter_by(orden_id=orden.id, parte_id=parte.id)\
-                             .scalar() or 0
-        costo_partes += cantidad * parte.precio
-    
-    costo_total = orden.costo_mano_obra + costo_partes
-    
-    return render_template('detalle_orden.html',
-                           orden=orden,
-                           costo_partes=costo_partes,
-                           costo_total=costo_total)
+
+    # 1. Partes usadas (sin calcular precios)
+    partes_usadas = orden.partes
+
+    # 2. Calcular solo la cantidad total de piezas usadas (opcional, para mostrar un resumen simple)
+    total_piezas_usadas = db.session.query(
+        func.sum(orden_trabajo_partes.c.cantidad_usada)
+    ).filter_by(orden_id=orden.id).scalar() or 0
+
+    # 3. Partes disponibles en inventario para el selector de agregar
+    partes_disponibles = Inventario.query.filter(Inventario.cantidad > 0).all()
+
+    # 4. (Opcional) Si quieres pasar un diccionario con cantidades por parte
+    cantidades_usadas = {}
+    if partes_usadas:
+        result = db.session.query(
+            orden_trabajo_partes.c.parte_id,
+            orden_trabajo_partes.c.cantidad_usada
+        ).filter_by(orden_id=orden.id).all()
+        
+        cantidades_usadas = {r.parte_id: r.cantidad_usada for r in result}
+
+    return render_template(
+        'detalle_orden.html',
+        orden=orden,
+        partes_usadas=partes_usadas,
+        cantidades_usadas=cantidades_usadas,       # para usar en el template
+        partes_disponibles=partes_disponibles,
+        total_piezas_usadas=total_piezas_usadas
+    )
 
 def get_dashboard_counts():
     from models import OrdenTrabajo, Inventario
@@ -444,7 +470,7 @@ def inject_dashboard_counts():
     return dict(dashboard_counts=get_dashboard_counts())
 
 
-@app.route('/ordenes_trabajo/update_estado/<int:orden_id>', methods=['POST'])
+@app.route('/ordenes_servicio/update_estado/<int:orden_id>', methods=['POST'])
 def update_estado_orden(orden_id):
     """
     Actualiza el estado de una orden de trabajo específica.
@@ -458,7 +484,7 @@ def update_estado_orden(orden_id):
     estados_validos = ['Pendiente', 'En progreso', 'Completado', 'Cancelado']
     if nuevo_estado not in estados_validos:
         flash(f'Estado inválido. Debe ser uno de: {", ".join(estados_validos)}', 'danger')
-        return redirect(request.referrer or url_for('ordenes_trabajo'))
+        return redirect(request.referrer or url_for('ordenes_servicio'))
     
     # Actualizar el estado
     orden.estado = nuevo_estado
@@ -476,8 +502,53 @@ def update_estado_orden(orden_id):
     db.session.commit()
     
     # Regresar a donde vino el usuario (página de detalle o lista)
-    return redirect(request.referrer or url_for('ordenes_trabajo'))
+    return redirect(request.referrer or url_for('ordenes_servicio'))
 
+
+@app.route('/vehiculos_por_cliente/<int:cliente_id>')
+def vehiculos_por_cliente(cliente_id):
+    """API para cargar vehículos de un cliente específico (usado por JS)"""
+    vehiculos = Vehiculo.query.filter_by(cliente_id=cliente_id).all()
+    return jsonify([{
+        'id': v.id,
+        'marca': v.marca,
+        'modelo': v.modelo,
+        'placa': v.placa,
+        'texto': f"{v.marca} {v.modelo} — Placa: {v.placa}"
+    } for v in vehiculos])
+
+
+@app.route('/ordenes_servicio/agregar_refaccion/<int:orden_id>', methods=['POST'])
+def agregar_refaccion_orden(orden_id):
+    orden = OrdenTrabajo.query.get_or_404(orden_id)
+    if orden.estado != 'En progreso':
+        flash('Solo se pueden agregar refacciones en progreso', 'danger')
+        return redirect(url_for('detalle_orden', orden_id=orden_id))
+    
+    parte_id = request.form.get('parte_id', type=int)
+    cantidad = request.form.get('cantidad_usada', type=int)
+    
+    parte = Inventario.query.get_or_404(parte_id)
+    if parte.cantidad < cantidad:
+        flash('Stock insuficiente', 'danger')
+        return redirect(url_for('detalle_orden', orden_id=orden_id))
+    
+    # Agregar a relación
+    db.session.execute(orden_trabajo_partes.insert().values(orden_id=orden_id, parte_id=parte_id, cantidad_usada=cantidad))
+    parte.cantidad -= cantidad  # Actualizar stock
+    db.session.commit()
+    flash('Refacción agregada', 'success')
+    return redirect(url_for('detalle_orden', orden_id=orden_id))
+
+@app.route('/ordenes_servicio/update_trabajo/<int:orden_id>', methods=['POST'])
+def update_trabajo_realizado(orden_id):
+    orden = OrdenTrabajo.query.get_or_404(orden_id)
+    orden.trabajo_realizado = request.form.get('trabajo_realizado')
+    db.session.commit()
+    flash('Trabajo realizado actualizado', 'info')
+    return redirect(url_for('detalle_orden', orden_id=orden_id))
+
+    
 
 if __name__ == '__main__':
     app.run(debug=True)

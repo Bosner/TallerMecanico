@@ -88,8 +88,8 @@
                 <td>{{ vehiculo.ano }}</td>
                 <td>{{ vehiculo.cliente.nombre }}</td>
                 <td>
-                    {% if vehiculo.ordenes_trabajo %}
-                        <span class="badge bg-primary">{{ vehiculo.ordenes_trabajo|length }}</span>
+                    {% if vehiculo.ordenes_servicio %}
+                        <span class="badge bg-primary">{{ vehiculo.ordenes_servicio|length }}</span>
                     {% else %}
                         <span class="badge bg-secondary">0</span>
                     {% endif %}
