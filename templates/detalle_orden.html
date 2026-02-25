@@ -48,11 +48,29 @@
 
     <!-- Checklist revisión visual -->
     <div class="card shadow mb-4">
-        <div class="card-header bg-warning text-dark">
-            <h5 class="mb-0">Revisión visual inicial</h5>
-        </div>
+        <div class="card-header bg-warning text-dark fw-bold">Revisión Física Inicial</div>
         <div class="card-body">
-            <p><strong>Checklist:</strong> {{ orden.checklist_revision | default('No se registró revisión inicial') }}</p>
+            {% if orden.checklist_revision %}
+            <ul class="list-group list-group-flush">
+                {% for key, data in orden.checklist_revision.items() %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>{{ checklist_items|selectattr('key', 'equalto', key)|map(attribute='label')|first }}</span>
+                    <span>
+                        {% if data.si %}
+                        <span class="badge bg-success">SI</span>
+                        {% else %}
+                        <span class="badge bg-danger">NO</span>
+                        {% endif %}
+                        {% if data.obs %}
+                        <small class="text-muted ms-2">({{ data.obs }})</small>
+                        {% endif %}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted">No se registró revisión inicial.</p>
+            {% endif %}
         </div>
     </div>
 

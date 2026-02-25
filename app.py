@@ -12,6 +12,29 @@ db.init_app(app)
 with app.app_context():
     db.create_all()  # Crea tablas si no existen
 
+
+CHECKLIST_ITEMS = [
+    {"key": "refaccion", "label": "Refacción"},
+    {"key": "herramienta", "label": "Herramienta"},
+    {"key": "luces_general", "label": "Luces generales"},
+    {"key": "cristales", "label": "Cristales"},
+    {"key": "golpes", "label": "Golpes / Daños visibles"},
+    {"key": "check_engine", "label": "Check engine / Luces advertencia"},
+    {"key": "wipers", "label": "Wipers (limpiaparabrisas)"},
+]
+
+# Lista de zonas clicables (puedes agregar más)
+ZONAS_VEHICULO = [
+    {"key": "parachoques_delantero", "label": "Parachoques delantero"},
+    {"key": "capo", "label": "Capó"},
+    {"key": "puerta_delantera_izq", "label": "Puerta delantera izquierda"},
+    {"key": "puerta_delantera_der", "label": "Puerta delantera derecha"},
+    {"key": "puerta_trasera_izq", "label": "Puerta trasera izquierda"},
+    {"key": "puerta_trasera_der", "label": "Puerta trasera derecha"},
+    {"key": "parachoques_trasero", "label": "Parachoques trasero"},
+    {"key": "techo", "label": "Techo"},
+    # Agrega más si quieres: faros, guardabarros, etc.
+]
 # Página de inicio
 @app.route('/')
 def index():
@@ -347,11 +370,25 @@ def ordenes_servicio():
             except:
                 flash('Formato de fecha compromiso inválido', 'warning')
 
-        # Checklist como texto
-        if checklist_items:
-            nueva_orden.checklist_revision = ", ".join(checklist_items)
-        else:
-            nueva_orden.checklist_revision = "Sin ítems de revisión inicial marcados"
+        # Checklist
+        checklist_data = {}
+        for item in CHECKLIST_ITEMS:
+            key = item['key']
+            si = request.form.get(f'checklist_si_{key}') == 'on'
+            obs = request.form.get(f'obs_{key}', '').strip()
+            checklist_data[key] = {"si": si, "obs": obs}
+
+        # Daños / golpes
+        danios_data = {}
+        for zona in ZONAS_VEHICULO:
+            key = zona['key']
+            marcado = request.form.get(f'danio_marcado_{key}') == 'on'
+            descripcion = request.form.get(f'danio_desc_{key}', '').strip()
+            if marcado or descripcion:
+                danios_data[key] = {"marcado": marcado, "descripcion": descripcion}
+
+        nueva_orden.checklist_revision = checklist_data
+        nueva_orden.danios_zonas = danios_data
 
         db.session.add(nueva_orden)
         db.session.commit()
@@ -409,7 +446,9 @@ def ordenes_servicio():
         total_pendientes=total_pendientes,
         total_progreso=total_progreso,
         total_completadas_hoy=total_completadas_hoy,
-        total_abiertas=total_abiertas
+        total_abiertas=total_abiertas,
+        checklist_items=CHECKLIST_ITEMS,
+        zonas_vehiculo=ZONAS_VEHICULO
     )
 
 @app.route('/ordenes_servicio/<int:orden_id>')

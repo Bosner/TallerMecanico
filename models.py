@@ -1,5 +1,6 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import date, datetime
+from sqlalchemy.dialects.sqlite import JSON
 
 db = SQLAlchemy()
 
@@ -57,12 +58,13 @@ class OrdenTrabajo(db.Model):
     folio = db.Column(db.String(20), unique=True)  # Nuevo: Folio secuencial como en Excels (ej: 'FOLIO-001')
     vehiculo_id = db.Column(db.Integer, db.ForeignKey('vehiculo.id'), nullable=False)
     falla_reportada = db.Column(db.Text, nullable=False)  # Nuevo: Falla que reporta el cliente (de Excels)
-    checklist_revision = db.Column(db.Text)  # Nuevo: Checklist visual (JSON o texto serializado, ej: "Luces: OK, Frenos: Mal")
+    checklist_revision = db.Column(JSON, nullable=True)  # Nuevo: Checklist visual (JSON o texto serializado, ej: "Luces: OK, Frenos: Mal")
     trabajo_realizado = db.Column(db.Text)  # Nuevo: Servicio realizado (de Excels)
     estado = db.Column(db.String(50), default='Pendiente')
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
     fecha_compromiso = db.Column(db.Date)  # Nuevo: Fecha compromiso entrega (de Excels)
     fecha_entrega = db.Column(db.Date)
+    danios_zonas = db.Column(JSON, nullable=True)
     
     # Relación many-to-many con Inventario
     partes = db.relationship(
