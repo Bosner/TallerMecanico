@@ -34,7 +34,7 @@ class Vehiculo(db.Model):
     placa = db.Column(db.String(20), unique=True, nullable=False)
     kms_actual = db.Column(db.Integer)
     cliente_id = db.Column(db.Integer, db.ForeignKey('cliente.id'), nullable=False)
-    ordenes_trabajo = db.relationship('OrdenTrabajo', backref='vehiculo', lazy=True)
+    ordenes_trabajo = db.relationship('OrdenTrabajo', backref='vehiculo', lazy=True, cascade="all, delete-orphan")
 
 class Inventario(db.Model):
     id = db.Column(db.Integer, primary_key=True)

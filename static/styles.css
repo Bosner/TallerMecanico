@@ -84,3 +84,94 @@ area.danio-zona.daño-marcado {
     border-bottom-color: transparent !important;
     color: #dc3545 !important; /* rojo danger */
 }
+
+
+/* Paleta consistente y amigable - basada en login pero suavizada */
+:root {
+    --primary: #C0392B;          /* Rojo principal suave */
+    --primary-dark: #A93226;     /* Hover / activo */
+    --secondary: #7D3C2A;        /* Marrón rojizo cálido */
+    --accent: #E67E22;           /* Naranja cálido para highlights */
+    --success: #27AE60;
+    --warning: #F39C12;
+    --danger: #E74C3C;
+    --dark: #2C3E50;
+    --gray: #6C757D;
+    --light: #F8F9FA;
+    --white: #FFFFFF;
+}
+
+/* Fondo general amigable */
+body {
+    background-color: var(--light);
+    color: var(--dark);
+}
+
+/* Navbar más elegante y menos agresivo */
+.navbar {
+    background-color: var(--dark) !important;
+}
+
+/* Botones principales */
+.btn-primary {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+.btn-primary:hover {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+}
+
+/* Botón de login / acciones importantes */
+.btn-login, .btn-danger, .btn-success {
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    border: none;
+}
+.btn-login:hover, .btn-danger:hover, .btn-success:hover {
+    background: linear-gradient(90deg, var(--primary-dark), var(--secondary));
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(192, 57, 43, 0.3);
+}
+
+/* Alertas y badges más suaves */
+.alert-success { background-color: rgba(39, 174, 96, 0.15); border-color: #27AE60; }
+.alert-warning { background-color: rgba(243, 156, 18, 0.15); border-color: #F39C12; }
+.alert-danger  { background-color: rgba(231, 76, 60, 0.15); border-color: #E74C3C; }
+
+.badge.bg-success { background-color: #27AE60 !important; }
+.badge.bg-warning { background-color: #F39C12 !important; }
+.badge.bg-danger  { background-color: #E74C3C !important; }
+
+/* Cards y tablas más amigables */
+.card {
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.table thead {
+    background-color: var(--primary);
+    color: white;
+}
+.table-hover tbody tr:hover {
+    background-color: rgba(230, 126, 34, 0.1); /* naranja muy suave */
+}
+
+/* Mejora visual en zonas de daño (más amigable) */
+.danio-zona {
+    border: 2px dashed var(--gray) !important;
+    background: rgba(200,200,200,0.15) !important;
+}
+.danio-zona:hover {
+    background: rgba(230, 126, 34, 0.25) !important;
+}
+.danio-zona[data-marcado="true"] {
+    background: rgba(192, 57, 43, 0.35) !important;
+    border: 3px solid var(--primary) !important;
+}
+
+/* Login específico (ya lo tienes, pero reforzamos coherencia) */
+.login-header {
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+}
+.btn-login {
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+}
