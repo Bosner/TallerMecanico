@@ -1,7 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
-from models import db, Cliente, Vehiculo, Inventario, OrdenCompra, OrdenTrabajo, orden_trabajo_partes
+from models import db, Cliente, Vehiculo, Inventario, OrdenCompra, OrdenTrabajo, orden_trabajo_partes,User
 from sqlalchemy import desc, func
 from datetime import date, datetime
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from werkzeug.security import check_password_hash
 
 app = Flask(__name__)
 app.secret_key = 'XnB4@lK009g#3120vWxyN43'
@@ -11,7 +13,47 @@ db.init_app(app)
 
 with app.app_context():
     db.create_all()  # Crea tablas si no existen
+    if not User.query.filter_by(username='admin').first():
+            admin = User(username='admin')
+            admin.set_password('ChitoWorkShop#123')  # ← Cambia esta contraseña por una segura
+            db.session.add(admin)
+            db.session.commit()
+            print("Usuario admin creado automáticamente con contraseña: ChitoWorkShop#123")
 
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'  # Redirige a login si no autenticado
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+@app.route('/')
+def index():
+    if not current_user.is_authenticated:
+        return redirect(url_for('login'))
+    return render_template('index.html')  # o tu dashboard principal
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            login_user(user)
+            return redirect(url_for('index'))
+        flash('Usuario o contraseña incorrectos', 'danger')
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
 
 CHECKLIST_ITEMS = [
     {"key": "refaccion", "label": "Refacción"},
@@ -33,15 +75,15 @@ ZONAS_VEHICULO = [
     {"key": "puerta_trasera_der", "label": "Puerta trasera derecha"},
     {"key": "parachoques_trasero", "label": "Parachoques trasero"},
     {"key": "techo", "label": "Techo"},
-    # Agrega más si quieres: faros, guardabarros, etc.
+    {"key": "faro_delantero_izq", "label": "Faro delantero izquierdo"},  # Nuevo
+    {"key": "faro_delantero_der", "label": "Faro delantero derecho"},  # Nuevo
+    {"key": "guardabarros_delantero_izq", "label": "Guardabarros (polvera) delantero izquierdo"},  # Nuevo
+    # Agrega más: espejos, llantas, etc.
 ]
-# Página de inicio
-@app.route('/')
-def index():
-    return render_template('index.html')
 
 # Módulo Clientes (CRUD)
 @app.route('/clientes', methods=['GET', 'POST'])
+@login_required
 def clientes():
     if request.method == 'POST':
         nombre = request.form.get('nombre')
@@ -113,6 +155,7 @@ def clientes():
 
 # Editar cliente
 @app.route('/clientes/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
 def editar_cliente(id):
     cliente = Cliente.query.get_or_404(id)
     
@@ -129,6 +172,7 @@ def editar_cliente(id):
 
 # Eliminar cliente (con confirmación básica)
 @app.route('/clientes/delete/<int:id>', methods=['POST'])
+@login_required
 def eliminar_cliente(id):
     cliente = Cliente.query.get_or_404(id)
     
@@ -144,6 +188,7 @@ def eliminar_cliente(id):
 
 # Similar para Vehículos
 @app.route('/vehiculos', methods=['GET', 'POST'])
+@login_required
 def vehiculos():
     if request.method == 'POST':
         marca = request.form.get('marca')
@@ -229,6 +274,7 @@ def vehiculos():
 
 # Inventarios
 @app.route('/inventarios', methods=['GET', 'POST'])
+@login_required
 def inventarios():
     if request.method == 'POST':
         nombre_parte = request.form.get('nombre_parte')
@@ -293,6 +339,7 @@ def inventarios():
 
 # Órdenes de Compra
 @app.route('/ordenes_compra', methods=['GET', 'POST'])
+@login_required
 def ordenes_compra():
     if request.method == 'POST':
         proveedor = request.form['proveedor']
@@ -325,13 +372,9 @@ def ordenes_compra():
     return render_template('ordenes_compra.html', ordenes=ordenes, items=items)
 
 
-from datetime import date, datetime
-from flask import flash, redirect, render_template, request, url_for
-from sqlalchemy import desc
-
-# ... otras importaciones que ya tengas ...
 
 @app.route('/ordenes_servicio', methods=['GET', 'POST'])
+@login_required
 def ordenes_servicio():
     if request.method == 'POST':
         cliente_id = request.form.get('cliente_id')
@@ -424,15 +467,10 @@ def ordenes_servicio():
 
     # Contadores para dashboard
     hoy = date.today()
-    total_pendientes         = OrdenTrabajo.query.filter_by(estado='Pendiente').count()
-    total_progreso           = OrdenTrabajo.query.filter_by(estado='En progreso').count()
-    total_completadas_hoy    = OrdenTrabajo.query.filter(
-        OrdenTrabajo.estado == 'Completado',
-        OrdenTrabajo.fecha_entrega == hoy
-    ).count()
-    total_abiertas           = OrdenTrabajo.query.filter(
-        OrdenTrabajo.estado.in_(['Pendiente', 'En progreso'])
-    ).count()
+    total_pendientes = OrdenTrabajo.query.filter_by(estado='Pendiente').count()
+    total_progreso = OrdenTrabajo.query.filter_by(estado='En progreso').count()
+    total_completadas_hoy = OrdenTrabajo.query.filter(OrdenTrabajo.estado=='Completado', OrdenTrabajo.fecha_entrega==date.today()).count()
+    total_abiertas = total_pendientes + total_progreso
 
     clientes = Cliente.query.order_by(Cliente.nombre).all()
 
@@ -452,6 +490,7 @@ def ordenes_servicio():
     )
 
 @app.route('/ordenes_servicio/<int:orden_id>')
+@login_required
 def detalle_orden(orden_id):
     """
     Muestra el detalle de una orden de servicio.
@@ -510,6 +549,7 @@ def inject_dashboard_counts():
 
 
 @app.route('/ordenes_servicio/update_estado/<int:orden_id>', methods=['POST'])
+@login_required
 def update_estado_orden(orden_id):
     """
     Actualiza el estado de una orden de trabajo específica.
@@ -545,6 +585,7 @@ def update_estado_orden(orden_id):
 
 
 @app.route('/vehiculos_por_cliente/<int:cliente_id>')
+@login_required
 def vehiculos_por_cliente(cliente_id):
     """API para cargar vehículos de un cliente específico (usado por JS)"""
     vehiculos = Vehiculo.query.filter_by(cliente_id=cliente_id).all()
@@ -558,6 +599,7 @@ def vehiculos_por_cliente(cliente_id):
 
 
 @app.route('/ordenes_servicio/agregar_refaccion/<int:orden_id>', methods=['POST'])
+@login_required
 def agregar_refaccion_orden(orden_id):
     orden = OrdenTrabajo.query.get_or_404(orden_id)
     if orden.estado != 'En progreso':
@@ -580,6 +622,7 @@ def agregar_refaccion_orden(orden_id):
     return redirect(url_for('detalle_orden', orden_id=orden_id))
 
 @app.route('/ordenes_servicio/update_trabajo/<int:orden_id>', methods=['POST'])
+@login_required
 def update_trabajo_realizado(orden_id):
     orden = OrdenTrabajo.query.get_or_404(orden_id)
     orden.trabajo_realizado = request.form.get('trabajo_realizado')

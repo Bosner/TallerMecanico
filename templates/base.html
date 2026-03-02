@@ -8,49 +8,28 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">Taller Mecánico</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/clientes">Clientes</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/vehiculos">Vehículos</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/ordenes_compra">Órdenes de compra</a>
-                    </li>
-                    <li class="nav-item position-relative">
-                        <a class="nav-link" href="/ordenes_servicio">
-                            Órdenes de Trabajo
-                            {% if dashboard_counts.pendientes > 0 %}
-                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                {{ dashboard_counts.pendientes }}
-                                <span class="visually-hidden">órdenes pendientes</span>
-                            </span>
-                            {% endif %}
-                        </a>
-                    </li>
-                    <li class="nav-item position-relative">
-                        <a class="nav-link" href="/inventarios">
-                            Inventario
-                            {% if dashboard_counts.critico_stock > 0 %}
-                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                {{ dashboard_counts.critico_stock }}
-                                <span class="visually-hidden">piezas críticas</span>
-                            </span>
-                            {% endif %}
-                        </a>
-                    </li>
-                </ul>
+    {% if current_user.is_authenticated %}
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/">Taller Mecánico</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" ...>
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item"><a class="nav-link" href="/clientes">Clientes</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/vehiculos">Vehículos</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/ordenes_compra">Órdenes de compra</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/ordenes_servicio">Órdenes de Trabajo</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/inventarios">Inventario</a></li>
+                    </ul>
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">Logout ({{ current_user.username }})</a></li>
+                    </ul>
+                </div>
             </div>
-        </div>
-    </nav>
+        </nav>
+    {% endif %}
     <div class="container mt-4">
         {% block content %}{% endblock %}
     </div>

@@ -46,30 +46,32 @@
         </div>
     </div>
 
-    <!-- Checklist revisión visual -->
+    <!-- Revisión Física Inicial -->
     <div class="card shadow mb-4">
-        <div class="card-header bg-warning text-dark fw-bold">Revisión Física Inicial</div>
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">Revisión Física Inicial</h5>
+        </div>
         <div class="card-body">
             {% if orden.checklist_revision %}
-            <ul class="list-group list-group-flush">
-                {% for key, data in orden.checklist_revision.items() %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <span>{{ checklist_items|selectattr('key', 'equalto', key)|map(attribute='label')|first }}</span>
-                    <span>
-                        {% if data.si %}
-                        <span class="badge bg-success">SI</span>
-                        {% else %}
-                        <span class="badge bg-danger">NO</span>
-                        {% endif %}
-                        {% if data.obs %}
-                        <small class="text-muted ms-2">({{ data.obs }})</small>
-                        {% endif %}
-                    </span>
-                </li>
-                {% endfor %}
-            </ul>
+                <div class="row g-3">
+                    {% for key, value in orden.checklist_revision.items() %}
+                        <div class="col-md-6 col-lg-4">
+                            <div class="d-flex justify-content-between align-items-center p-3 border rounded bg-light">
+                                <span class="fw-bold text-capitalize">
+                                    {{ key | replace('_', ' ') }}
+                                </span>
+                                <span class="badge fs-5 px-4 py-2 
+                                    {% if value.si %}bg-success{% else %}bg-danger{% endif %}">
+                                    {% if value.si %}SI{% else %}NO{% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
             {% else %}
-            <p class="text-muted">No se registró revisión inicial.</p>
+                <div class="alert alert-info mb-0 text-center">
+                    No se registró revisión física inicial para esta orden.
+                </div>
             {% endif %}
         </div>
     </div>
