@@ -42,6 +42,8 @@ class Inventario(db.Model):
     cantidad = db.Column(db.Integer, nullable=False)
     numero_parte = db.Column(db.String(50))
     descripcion = db.Column(db.Text)
+    proveedor = db.Column(db.String(100))
+    costo = db.Column(db.Float, nullable=False)
     precio = db.Column(db.Float, nullable=False)
     # Tabla intermedia para refacciones con cantidad
     orden_trabajo_partes = db.Table(

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Cotización #{{ orden.id }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        h1 { color: #A52A2A; text-align: center; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .total { font-weight: bold; font-size: 1.2em; text-align: right; }
+    </style>
+</head>
+<body>
+    <h1>Cotización para Orden #{{ orden.folio or orden.id }}</h1>
+    
+    <p><strong>Cliente:</strong> {{ orden.vehiculo.cliente.nombre }}</p>
+    <p><strong>Vehículo:</strong> {{ orden.vehiculo.marca }} {{ orden.vehiculo.modelo }} - {{ orden.vehiculo.placa }}</p>
+    <p><strong>Falla reportada:</strong> {{ orden.falla_reportada }}</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Pieza</th>
+                <th># Parte</th>
+                <th>Cant.</th>
+                <th>Precio Unit.</th>
+                <th>Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pieza, cantidad in refacciones %}
+            <tr>
+                <td>{{ pieza.nombre_parte }}</td>
+                <td>{{ pieza.numero_parte or '-' }}</td>
+                <td>{{ cantidad }}</td>
+                <td>${{ pieza.precio_publico|round(2) }}</td>
+                <td>${{ (pieza.precio_publico * cantidad)|round(2) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <p class="total">Subtotal: ${{ subtotal|round(2) }}</p>
+    <p class="total">IVA (16%): ${{ iva|round(2) }}</p>
+    <p class="total">Total: ${{ total|round(2) }}</p>
+    
+    <p style="margin-top: 40px; text-align: center; color: #777;">
+        Cotización válida por 15 días. Para autorizar contactar al taller.
+    </p>
+</body>
+</html>

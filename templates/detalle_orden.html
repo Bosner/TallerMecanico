@@ -197,6 +197,15 @@
                     </div>
                 </div>
             </form>
+                    <!-- Botón para generar cotización (solo si la orden está en Pendiente o En progreso) -->
+            {% if orden.estado in ['Pendiente', 'En progreso'] %}
+            <div class="mt-4 text-end">
+                <a href="{{ url_for('generar_cotizacion', orden_id=orden.id) }}" 
+                class="btn btn-lg w-100 btn-secondary">
+                    <i class="bi bi-file-earmark-arrow-down"></i> Generar Cotización
+                </a>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

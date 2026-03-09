@@ -1,15 +1,19 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, make_response, render_template_string
+from flask_migrate import Migrate
 from models import db, Cliente, Vehiculo, Inventario, OrdenCompra, OrdenTrabajo, orden_trabajo_partes,User
 from sqlalchemy import desc, func
 from datetime import date, datetime
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash
+import pdfkit
+import io
 
 app = Flask(__name__)
 app.secret_key = 'XnB4@lK009g#3120vWxyN43'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
+migrate = Migrate(app, db)
 
 with app.app_context():
     db.create_all()  # Crea tablas si no existen
@@ -19,6 +23,7 @@ with app.app_context():
             db.session.add(admin)
             db.session.commit()
             print("Usuario admin creado automáticamente con contraseña: ChitoWorkShop#123")
+
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -278,20 +283,28 @@ def vehiculos():
 def inventarios():
     if request.method == 'POST':
         nombre_parte = request.form.get('nombre_parte')
-        cantidad = int(request.form.get('cantidad') or 0)
-        precio = float(request.form.get('precio') or 0.0)
-        
-        if nombre_parte and cantidad >= 0 and precio >= 0:
-            nuevo_item = Inventario(
+        cantidad = int(request.form.get('cantidad', 0))
+        numero_parte = request.form.get('numero_parte')
+        proveedor = request.form.get('proveedor')
+        costo = float(request.form.get('costo', 0))
+        precio_publico = float(request.form.get('precio_publico', 0))
+        descripcion = request.form.get('descripcion')
+
+        if nombre_parte and cantidad >= 0 and costo > 0 and precio_publico > 0:
+            nueva_pieza = Inventario(
                 nombre_parte=nombre_parte,
                 cantidad=cantidad,
-                precio=precio
+                numero_parte=numero_parte,
+                proveedor=proveedor,
+                costo=costo,
+                precio_publico=precio_publico,
+                descripcion=descripcion
             )
-            db.session.add(nuevo_item)
+            db.session.add(nueva_pieza)
             db.session.commit()
-            flash('Pieza agregada al inventario', 'success')
+            flash('Pieza agregada correctamente', 'success')
         else:
-            flash('Datos inválidos. Verifica nombre, cantidad y precio.', 'danger')
+            flash('Completa los campos obligatorios (nombre, cantidad, costo y precio público)', 'danger')
         
         return redirect(url_for('inventarios'))
 
@@ -630,7 +643,46 @@ def update_trabajo_realizado(orden_id):
     flash('Trabajo realizado actualizado', 'info')
     return redirect(url_for('detalle_orden', orden_id=orden_id))
 
+
+@app.route('/cotizacion/<int:orden_id>')
+@login_required
+def generar_cotizacion(orden_id):
+    orden = OrdenTrabajo.query.get_or_404(orden_id)
     
+    # Obtener refacciones usadas (asumiendo que ya tienes la relación many-to-many)
+    refacciones = orden.get_partes_con_cantidad()  # Esto devuelve lista de (pieza, cantidad)
+    
+    # Calcular totales
+    subtotal = sum(pieza.precio_publico * cantidad for pieza, cantidad in refacciones if pieza.precio_publico)
+    iva = subtotal * 0.16
+    total = subtotal + iva
+    
+    return render_template('cotizacion.html', 
+                          orden=orden, 
+                          refacciones=refacciones,
+                          subtotal=subtotal,
+                          iva=iva,
+                          total=total)
+
+@app.route('/cotizacion/pdf/<int:orden_id>')
+@login_required
+def generar_cotizacion_pdf(orden_id):
+    orden = OrdenTrabajo.query.get_or_404(orden_id)
+    refacciones = orden.get_partes_con_cantidad()
+    subtotal = sum(pieza.precio_publico * cantidad for pieza, cantidad in refacciones if pieza.precio_publico)
+    iva = subtotal * 0.16
+    total = subtotal + iva
+
+    html_string = render_template('cotizacion_pdf.html', orden=orden, refacciones=refacciones, subtotal=subtotal, iva=iva, total=total)
+    
+    pdf = pdfkit.from_string(html_string, False)
+    
+    response = make_response(pdf)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename=cotizacion_{orden.id}.pdf'
+    return response    
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
