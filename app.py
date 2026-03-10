@@ -5,16 +5,29 @@ from models import db, Cliente, Vehiculo, Inventario, OrdenCompra, OrdenTrabajo,
 from sqlalchemy import desc, func, or_
 from datetime import date, datetime
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash
 import pdfkit
 import io
+from extensions import db, migrate
 
 app = Flask(__name__)
-app.secret_key = 'XnB4@lK009g#3120vWxyN43'
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+
+# Clave secreta (usa variable de entorno en producción)
+app.secret_key = os.getenv('SECRET_KEY') or 'XnB4@lK009g#3120vWxyN43'  # Cambia esta para local
+
+database_url = os.getenv('DATABASE_URL')
+if database_url:
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}  # Mejora para Postgres
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'  # Local por defecto
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ECHO'] = False  # Desactiva logs SQL en producción
+
 db.init_app(app)
-migrate = Migrate(app, db)
+migrate.init_app(app, db)
 
 with app.app_context():
     db.drop_all()
