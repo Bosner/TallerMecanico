@@ -29,17 +29,6 @@ app.config['SQLALCHEMY_ECHO'] = False  # Desactiva logs SQL en producción
 db.init_app(app)
 migrate.init_app(app, db)
 
-with app.app_context():
-    db.drop_all()
-    db.create_all()  # Crea tablas si no existen
-    if not User.query.filter_by(username='admin').first():
-            admin = User(username='admin')
-            admin.set_password('ChitoWorkShop#123')  # ← Cambia esta contraseña por una segura
-            db.session.add(admin)
-            db.session.commit()
-            print("Usuario admin creado automáticamente con contraseña: ChitoWorkShop#123")
-
-
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'  # Redirige a login si no autenticado
@@ -695,10 +684,16 @@ def generar_cotizacion_pdf(orden_id):
     response.headers['Content-Disposition'] = f'attachment; filename=cotizacion_{orden.id}.pdf'
     return response    
 
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    app.run(debug=True)
-
+with app.app_context():
+    db.drop_all()
+    db.create_all()  # Crea tablas si no existen
+    if not User.query.filter_by(username='admin').first():
+            admin = User(username='admin')
+            admin.set_password('ChitoWorkShop#123')  # ← Cambia esta contraseña por una segura
+            db.session.add(admin)
+            db.session.commit()
+            print("Usuario admin creado automáticamente")
+            
+            
 #if __name__ == '__main__':
     #app.run(debug=True)
