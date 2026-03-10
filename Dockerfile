@@ -1,10 +1,8 @@
 FROM python:3.11-slim-bookworm
 
-# Instala dependencias del sistema (exhaustivo para wkhtmltopdf)
+# Instala dependencias mínimas y necesarias para wkhtmltopdf
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
-    gnupg \
-    ca-certificates \
     libfontconfig1 \
     libxrender1 \
     libjpeg62-turbo \
@@ -12,31 +10,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xfonts-75dpi \
     xfonts-base \
     fontconfig \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Descarga e instala wkhtmltopdf 0.12.6.1 para bookworm (AMD64)
+# Descarga e instala wkhtmltopdf (versión bookworm AMD64)
 RUN wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-3/wkhtmltox_0.12.6.1-3.bookworm_amd64.deb -O /tmp/wkhtmltox.deb \
     && dpkg -i /tmp/wkhtmltox.deb || apt-get install -f -y \
     && rm /tmp/wkhtmltox.deb
 
-# Fuerza link al PATH y actualiza ldconfig por si acaso
-RUN ln -sf /usr/local/bin/wkhtmltopdf /usr/bin/wkhtmltopdf \
-    && ldconfig
+# Asegura que el binario esté en PATH y actualiza librerías
+ENV PATH="/usr/local/bin:${PATH}"
+RUN ldconfig
 
-# Verifica instalación (debe mostrar versión si todo OK)
-RUN wkhtmltopdf --version || echo "Verificación falló, pero continuamos" && which wkhtmltopdf
+# Verificación explícita con ruta completa + echo para depurar
+RUN /usr/local/bin/wkhtmltopdf --version || echo "Verificación falló (ruta completa usada)" \
+    && which wkhtmltopdf || echo "which no encontró wkhtmltopdf"
 
-# Directorio de la app
+# Directorio y app
 WORKDIR /app
-
-# Copia y instala requirements
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Copia el resto
 COPY . .
 
 EXPOSE 5000
 
-# Comando de inicio (migraciones + app)
+# Inicio: migraciones + app
 CMD ["sh", "-c", "flask db upgrade || true && python app.py"]
