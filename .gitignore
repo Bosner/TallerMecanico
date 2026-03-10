@@ -1,0 +1,38 @@
+# Entornos virtuales
+venv/
+.env/
+.env.local
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Archivos compilados de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos de desarrollo y editores
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs y temporales
+*.log
+*.tmp
+*.bak
+*.swp
+
+# Bases de datos locales (NO subas app.db o db.sqlite)
+*.db
+*.sqlite
+*.sqlite3
+
+# Otros comunes
+node_modules/
+dist/
+build/
