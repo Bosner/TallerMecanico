@@ -128,15 +128,15 @@
                 <td>{{ item.proveedor or '-' }}</td>
                 <td class="fw-bold">{{ item.cantidad }}</td>
                 <td>${{ item.costo|round(2) if item.costo else '-' }}</td>
-                <td>${{ item.precio_publico|round(2) if item.precio_publico else '-' }}</td>
+                <td>${{ item.precio|round(2) if item.precio else '-' }}</td>  <!-- Usa 'precio' del modelo, pero etiqueta como Precio Público -->
                 <td>
-                    {% if item.costo and item.precio_publico %}
-                        ${{ (item.precio_publico - item.costo)|round(2) }}
+                    {% if item.costo and item.precio %}
+                        ${{ (item.precio - item.costo)|round(2) }}  <!-- Ganancia = precio - costo -->
                     {% else %}
                         -
                     {% endif %}
                 </td>
-                <td>${{ (item.cantidad * (item.precio_publico or 0))|round(2) }}</td>
+                <td>${{ (item.cantidad * (item.precio or 0))|round(2) }}</td>
                 <td>
                     {% if item.cantidad == 0 %}
                         <span class="badge bg-secondary">Sin stock</span>

@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, make_response, render_template_string
 from flask_migrate import Migrate
 from models import db, Cliente, Vehiculo, Inventario, OrdenCompra, OrdenTrabajo, orden_trabajo_partes,User
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, or_
 from datetime import date, datetime
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash
@@ -283,66 +283,64 @@ def vehiculos():
 def inventarios():
     if request.method == 'POST':
         nombre_parte = request.form.get('nombre_parte')
-        cantidad = int(request.form.get('cantidad', 0))
         numero_parte = request.form.get('numero_parte')
         proveedor = request.form.get('proveedor')
+        cantidad = int(request.form.get('cantidad', 0))
         costo = float(request.form.get('costo', 0))
-        precio_publico = float(request.form.get('precio_publico', 0))
+        precio_publico = float(request.form.get('precio_publico', 0))  # Alias: esto se guarda en 'precio' del modelo
         descripcion = request.form.get('descripcion')
 
         if nombre_parte and cantidad >= 0 and costo > 0 and precio_publico > 0:
             nueva_pieza = Inventario(
                 nombre_parte=nombre_parte,
-                cantidad=cantidad,
                 numero_parte=numero_parte,
                 proveedor=proveedor,
+                cantidad=cantidad,
                 costo=costo,
-                precio_publico=precio_publico,
+                precio=precio_publico,  # Guarda en 'precio' del modelo
                 descripcion=descripcion
             )
             db.session.add(nueva_pieza)
             db.session.commit()
-            flash('Pieza agregada correctamente', 'success')
+            flash(f'Pieza "{nombre_parte}" agregada correctamente (ID: {nueva_pieza.id})', 'success')
         else:
-            flash('Completa los campos obligatorios (nombre, cantidad, costo y precio público)', 'danger')
-        
-        return redirect(url_for('inventarios'))
+            flash('Error: Completa los campos obligatorios (nombre, cantidad, costo y precio público)', 'danger')
 
-    # GET: filtros, búsqueda y paginación
+        # Redirect limpio a página 1 con todos los filtros para ver la nueva pieza inmediatamente
+        return redirect(url_for('inventarios', page=1, busqueda='', filtro_stock='todos'))
+
+    # GET: filtros y paginación
     page = request.args.get('page', 1, type=int)
-    busqueda = request.args.get('busqueda', '').strip()
-    filtro_stock = request.args.get('filtro_stock', 'todos')  # todos, bajo, critico, con_stock
+    busqueda = request.args.get('busqueda', '')
+    filtro_stock = request.args.get('filtro_stock', 'todos')
 
     query = Inventario.query
 
-    # Búsqueda por nombre
     if busqueda:
-        query = query.filter(Inventario.nombre_parte.ilike(f'%{busqueda}%'))
+        query = query.filter(
+            or_(
+                Inventario.nombre_parte.ilike(f'%{busqueda}%'),
+                Inventario.numero_parte.ilike(f'%{busqueda}%')
+            )
+        )
 
-    # Filtros de stock
-    if filtro_stock == 'bajo':
+    if filtro_stock == 'con_stock':
+        query = query.filter(Inventario.cantidad > 0)
+    elif filtro_stock == 'bajo':
         query = query.filter(Inventario.cantidad <= 20, Inventario.cantidad > 0)
     elif filtro_stock == 'critico':
         query = query.filter(Inventario.cantidad <= 5)
-    elif filtro_stock == 'con_stock':
-        query = query.filter(Inventario.cantidad > 0)
-    # 'todos' → sin filtro
 
-    # Orden por cantidad ascendente (lo que se acaba primero arriba)
-    query = query.order_by(Inventario.cantidad.asc())
+    items_pag = query.order_by(Inventario.id.desc()).paginate(page=page, per_page=10)
 
-    paginacion = query.paginate(page=page, per_page=25, error_out=False)
-    items = paginacion.items
-
-    # Cálculos para dashboard
     total_piezas = Inventario.query.count()
-    total_valor_stock = db.session.query(db.func.sum(Inventario.cantidad * Inventario.precio)).scalar() or 0
+    total_valor_stock = db.session.query(db.func.sum(Inventario.cantidad * Inventario.precio)).scalar() or 0  # Usa 'precio' del modelo
     bajo_stock = Inventario.query.filter(Inventario.cantidad <= 20, Inventario.cantidad > 0).count()
     critico_stock = Inventario.query.filter(Inventario.cantidad <= 5).count()
 
     return render_template('inventarios.html',
-                           items=items,
-                           paginacion=paginacion,
+                           items=items_pag.items,
+                           paginacion=items_pag,
                            busqueda=busqueda,
                            filtro_stock=filtro_stock,
                            total_piezas=total_piezas,
