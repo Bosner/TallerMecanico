@@ -1,3 +1,4 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, make_response, render_template_string
 from flask_migrate import Migrate
 from models import db, Cliente, Vehiculo, Inventario, OrdenCompra, OrdenTrabajo, orden_trabajo_partes,User
@@ -10,12 +11,13 @@ import io
 
 app = Flask(__name__)
 app.secret_key = 'XnB4@lK009g#3120vWxyN43'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 migrate = Migrate(app, db)
 
 with app.app_context():
+    db.drop_all()
     db.create_all()  # Crea tablas si no existen
     if not User.query.filter_by(username='admin').first():
             admin = User(username='admin')
@@ -680,7 +682,10 @@ def generar_cotizacion_pdf(orden_id):
     response.headers['Content-Disposition'] = f'attachment; filename=cotizacion_{orden.id}.pdf'
     return response    
 
-
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    app.run(debug=True)
 
 #if __name__ == '__main__':
     #app.run(debug=True)
