@@ -38,13 +38,13 @@ class Vehiculo(db.Model):
 
 class Inventario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    nombre_parte = db.Column(db.String(100), nullable=False)
-    cantidad = db.Column(db.Integer, nullable=False)
+    nombre_parte = db.Column(db.String(100))
+    cantidad = db.Column(db.Integer, nullable=True, default=0.0)
     numero_parte = db.Column(db.String(50))
     descripcion = db.Column(db.Text)
     proveedor = db.Column(db.String(100))
-    costo = db.Column(db.Float, nullable=False)
-    precio = db.Column(db.Float, nullable=False)
+    costo = db.Column(db.Float, nullable=True, default=0.0)
+    precio = db.Column(db.Float, nullable=True, default=0.0)
     # Tabla intermedia para refacciones con cantidad
     orden_trabajo_partes = db.Table(
         'orden_trabajo_partes',
